@@ -1,4 +1,3 @@
-#as.string = as.character
 
 # When we generate an S4 class to represent a SOAP compound data type,
 # we have it extend this degenerate class. This allows us to
@@ -35,8 +34,8 @@ setClass("SOAPGeneralFault", representation("SOAPFault", code="character"))
 setClass("SOAPServer", representation(
                                       host = "character",
                                       port = "integer",
-                                      path = "character"),
-                       prototype = list(host = "", port = as.integer(NA), path = "" ))
+                                      url = "character"),
+                       prototype = list(host = "", port = as.integer(NA), url="" ))
 
 
 setClass("DynamicSOAPServer", representation(server = "SOAPServer", functions = "list")) # , contains = "SOAPServer")
@@ -67,9 +66,8 @@ setClass("WSDLMethod", representation(name="character",
                                       use = "character",          # literal or encoded
                                       documentation = "character",
                                       header = "ANY", #XXX
-                                      returnNodeName = 'character', # name of the node that contains
+                                      returnNodeName = 'character' # name of the node that contains
                                                                    # the result's payload. See getReturnNode.
-                                      numPartElements = "integer"
                                      ),
                        prototype = list(bindingStyle = as.character(NA),
                                         use = c(input = as.character(NA), output = as.character(NA)),

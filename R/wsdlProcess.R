@@ -67,26 +67,18 @@ function(operations = def@operations[[1]],
          putFunctions = FALSE,
          verb = def@verb,
          opFun = getOperationFunction(verb),
-         opts = new("CodeGenOpts"),
-         collapseSingleComplexParameter = TRUE, ...)
+         opts = new("CodeGenOpts"), ...)
 {
-   if(missing(where) && is(putFunctions, "environment"))
-      where = putFunctions
-  
+
  computeOperations = FALSE
- if(missing(def) && (is(operations, "SOAPServerDescription") 
-                     || is(operations, "character")
-                     || is(operations, "XMLAbstractNode"))) {
+ if(missing(def) && (is(operations, "SOAPServerDescription") || is(operations, "character") || is(operations, "XMLAbstractNode"))) {
     computeOperations = TRUE
     def = operations
-    if(is(operations, "SOAPServerDescription"))
-       operations = def@operations[[1]] # NULL
+    operations = def@operations[[1]] # NULL
  } 
 
- if(is.character(def) || is(def, "XMLAbstractNode")) {
+ if(is.character(def) || is(def, "XMLAbstractNode"))
     def = processWSDL(def, ...)
-    operations = def@operations[[1]]
-  }
 
  
  classes = NULL
@@ -100,8 +92,7 @@ function(operations = def@operations[[1]],
    if(verbose)
       cat("Operation", i@name, "\n")
 
-   funs[[convertToSName(i@name)]] = opFun(i, server, def@types, env, nameSpaces, addSoapHeader,
-                                           collapseSingleComplexParameter = collapseSingleComplexParameter)
+   funs[[convertToSName(i@name)]] = opFun(i, server, def@types, env, nameSpaces, addSoapHeader)
  }
 
 
@@ -115,7 +106,7 @@ function(operations = def@operations[[1]],
  
  ans = new("SOAPClientInterface", functions = funs, classes = as.list(classes))
 
- invisible(ans)
+ ans
 }
 
 
@@ -145,36 +136,13 @@ setMethod("getElementFormQualified", "SchemaCollection",
 
 createOperationDefinition =
 function(.operation, .defaultServer, .types, env = globalenv(), nameSpaces = NA, addSoapHeader = FALSE,
-          .elementFormQualified = getElementFormQualified(.types),
-          collapseSingleComplexParameter = TRUE)
+          .elementFormQualified = getElementFormQualified(.types))
 {
-
-if(.operation@name == "list_pathways")  browser() #XX
-  
   empty = sapply(.operation@parameters, checkIsEmptyParameter, types = .types, name = .operation@name, namespaceDefs = nameSpaces)
-     #XXX resolve the parameter types. Already resolving them in checkIsEmptyParameter. Should
-     # avoid second round of resolve()ing.
+     # resolve the parameter types
  .operation@parameters = .operation@parameters[!empty]
  .operation@parameters = lapply(.operation@parameters, resolve, .types)
 
-  collapsedParameter = FALSE  
-  if(collapseSingleComplexParameter && length(.operation@parameters) && .operation@numPartElements == 1) {
-    p = .operation@parameters[[1]]
-    if(is(p, "Element")) {
-      collapsedParameter = TRUE
-      collapsedType = p@type
-      if(is(p@type, "ClassDefinition"))
-        .operation@parameters = p@type@slotTypes
-      else if(is(p@type, "PrimitiveSchemaType"))
-        .operation@parameters = structure(list(p@type), names = p@name)
-      else
-        collapsedParameter = FALSE
-    } else {
-      cat("Not collapsing for", .operation@name, "type", class(p), "\n")
- #      browser()
-   }
-  }
-  
  .operation@returnValue = rval = resolve(.operation@returnValue, .types)
 
  if(!is.null(.operation@header))
@@ -195,24 +163,12 @@ if(.operation@name == "list_pathways")  browser() #XX
 
  dotArgs = ""
  if(length(.operation@parameters)) {
-
-  if(collapsedParameter) {
-      # leave the coercion of the individual elements until later.
-     dotArgs =  paste(sprintf("%s = %s", names(.operation@parameters),
-                                   names(.operation@parameters)),
-                      collapse = ", ")
-     dotArgs = sprintf("as(list(%s), '%s')", dotArgs, collapsedType@name)
-  } else {
-     values = sapply(names(.operation@parameters),
+   values = sapply(names(.operation@parameters),
                      function(x)
                         coerceArgumentCode(x, .operation@parameters[[x]]))
-     dotArgs = paste(paste(paste("'", names(.operation@parameters), "'", sep=""),
-                                      values, sep = " = "),
-                      collapse=",\n\t")
-   }
-
-   
-   dotArgs = sprintf(".soapArgs = list(%s)", dotArgs)
+   dotArgs = paste(paste(paste("'", names(.operation@parameters), "'", sep=""),
+                                       values, sep = " = "),
+                   collapse=",\n\t")
  }
 
 
@@ -228,7 +184,7 @@ if(.operation@name == "list_pathways")  browser() #XX
  }
 
 
- converter = if(is(.operation@returnValue, "BasicSchemaType") && length(body(.operation@returnValue@fromConverter)) > 1)
+ converter = if(is(.operation@returnValue, "BasicSOAPType") && length(body(.operation@returnValue@fromConverter)) > 1)
                 ".operation@returnValue@fromConverter"
              else
                 ".operation@returnValue"
@@ -237,16 +193,13 @@ if(.operation@name == "list_pathways")  browser() #XX
 
  .opts = ", .opts = list(...), ..."
  .opts = ", .opts = list()"
-
-  
+ 
  txt = paste("function(",
               paste(c(params,
                       paste("server = .defaultServer, .convert = ", converter, .opts)),
                     collapse=",\n\t "),
                     paste(",\n\t nameSpaces = ", ifelse(is.na(nameSpaces), nameSpaces, simple.dQuote(nameSpaces))),
                     if(insertSoapHeader) ", .soapHeader = NULL",
-                    ", .header = SSOAP::getSOAPRequestHeader(.operation@action, .server = server)",   
-                    ", curlHandle = RCurl::getCurlHandle()",
                   ")\n{\n",
               fixes[1],
              "\t .SOAP(server, .operation@name, ",
@@ -256,7 +209,7 @@ if(.operation@name == "list_pathways")  browser() #XX
                   "\n\t\t",         "xmlns = .operation@namespace, ",
                   "\n\t\t",         ".types = .operation@parameters, ",
                   "\n\t\t",         ".convert = .convert,",
-#                  "\n\t\t",         ".header = .header,",
+                  "\n\t\t",         ".header = .header,",
                   "\n\t\t",         ".opts = .opts ",
                   if(!is.na(.operation@use["input"]) && .operation@use["input"] == "literal") ",\n\t\t .literal = TRUE",
 # now in .opts = list(...)
@@ -265,9 +218,6 @@ if(.operation@name == "list_pathways")  browser() #XX
                   paste(" .elementFormQualified", .elementFormQualified, sep = " = "),
                   sprintf(", .returnNodeName = %s", if(is.na(.operation@returnNodeName)) NA else sQuote(.operation@returnNodeName)),
                   if(insertSoapHeader) ", .soapHeader = .soapHeader",
-                  ", .header = .header, curlHandle = curlHandle",
-                  if(!is.na(.operation@use["input"]) && .operation@use["input"] == "encoded")
-                      ", .use_encoded = TRUE",
                   ")\n",
                   fixes[2],
                   "\n}", sep="")  
@@ -278,8 +228,7 @@ if(.operation@name == "list_pathways")  browser() #XX
  
  environment(f) <- e <- new.env(parent = env)
  e$.operation <- .operation
-   # Why do this here?
- # e$.header <- getSOAPRequestHeader(.operation@action, .server = .defaultServer)
+ e$.header <- getSOAPRequestHeader(.operation@action, .server = .defaultServer)
 
   # The .defaultServer will, by default, be shared across all the functions.
   # So no need to copy it here. But if we can't find it and have it here,
@@ -300,9 +249,7 @@ if(.operation@name == "list_pathways")  browser() #XX
 
 
 
-setGeneric("convertFromSOAP",
-            function(val, type, nodeName = "return", ...)
-                 standardGeneric("convertFromSOAP"))
+setGeneric("convertFromSOAP", function(val, type, nodeName = "return", ...) standardGeneric("convertFromSOAP"))
 
 
 if(FALSE)
@@ -588,7 +535,6 @@ function(node, types, doc, namespaceDefinitions = list(), typeDefinitions = list
   portType = types[which][[1]] 
   if(is.null(portType[["input"]])) {
      args = list()
-     parts = list()
   } else  {
      input = discardNamespace( xmlGetAttr(portType[["input"]], "message") )
  
@@ -605,11 +551,11 @@ function(node, types, doc, namespaceDefinitions = list(), typeDefinitions = list
                              # For some reason, adding nsuri here causes the genSOAPClientInterface () to fail.
                              # when generating the operation code in the tests/interop.R example. It is most like
                              # an issue. With the nsuri, we get a SOAPTypeReference for the single parameter,
-                             # but without it (i.e. the 2nd call below) we get an object of class PrimitiveSchemaType.
+                             # but without it (i.e. the 2nd call below) we get an object of class PrimitiveSOAPType.
                              # We are using the namespace from x, and not the value in the type element, e.g. xsd:string
                              # However, in this example, they are the same.
                              # SOAPType(el, nsuri = xmlNamespace(x), namespaceDefs = namespaceDefinitions)
-                            SchemaType(el, namespaceDefs = namespaceDefinitions)                            
+                            SOAPType(el, namespaceDefs = namespaceDefinitions)                            
                           })
    # need to map the name for an element rather than type. Let's do this in
    # genSOAPClientInterface() for now.
@@ -640,9 +586,9 @@ function(node, types, doc, namespaceDefinitions = list(), typeDefinitions = list
   msgs = doc[xmlSApply(doc, function(x) xmlName(x) == "message" && xmlGetAttr(x, "name") == output)]
   msg = msgs[[1]]  
 
- 
+
   returnNodeName = NA
-  if(xmlSize(msg) && "part" %in% names(msg)) {
+  if(xmlSize(msg)) {
     value = xmlGetAttr(msg[["part"]], "type")
     if(is.null(value)) 
        value = xmlGetAttr(msg[["part"]], "element", NULL)
@@ -672,11 +618,10 @@ function(node, types, doc, namespaceDefinitions = list(), typeDefinitions = list
   action = SOAPAction(action)
 
   obj = new("WSDLMethod", name = name, parameters = args,
-                          returnValue = SchemaType(value, namespaceDefs = namespaceDefinitions), #, obj = new("SchemaTypeReference")),
+                          returnValue = SOAPType(value, namespaceDefs = namespaceDefinitions), #, obj = new("SOAPTypeReference")),
                           namespace = namespace,
                           action = action,
-                          returnNodeName = as.character(returnNodeName),
-                          numPartElements = length(parts))
+                          returnNodeName = as.character(returnNodeName))
 
   obj@bindingStyle = xmlGetAttr(node[["operation"]], "style", as.character(NA))
   obj@use = sapply(c("input", "output"), 
@@ -718,7 +663,7 @@ function(type, types, name = NA, namespaceDefs = list())
    if(is(tt, "Element"))
      tt = tt@type
 
-   if(is.null(tt) || (is(tt, "ClassDefinition") && length(tt@slotTypes) == 0) || is(tt, "SchemaVoidType")) {
+   if(is.null(tt) || (is(tt, "ClassDefinition") && length(tt@slotTypes) == 0)) {
      return(TRUE)
     }
 
