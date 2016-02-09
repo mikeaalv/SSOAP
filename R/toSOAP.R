@@ -1,10 +1,11 @@
 setGeneric("toSOAP",
-            function(obj, con = xmlOutputBuffer(header = ""), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...) {
-              tmp = standardGeneric("toSOAP")
+            function(obj, con = xmlOutputBuffer(header = ""), type = NULL,
+                      literal = FALSE, elementFormQualified = FALSE, ...) {
+              tmp <- standardGeneric("toSOAP")
 
                 # For the methods that just format the value (e.g. SOAPDataType, decimal, etc.)
                 # we'll add the text as a child of con if it is an XML node
-              if(is.character(tmp) && is(con, "XMLInternalElementNode") && xmlSize(con) == 0)
+              if(is.vector(tmp) && is(con, "XMLInternalElementNode") && xmlSize(con) == 0)
                  xmlValue(con) = tmp
 
 #??? Is this the right thing to be doing?
@@ -24,23 +25,23 @@ setMethod("toSOAP", c("ANY", "XMLInternalElementNode", type = "Element"),
                   toSOAP(obj, con, type@type, literal, elementFormQualified, ...))
 
 
-setMethod("toSOAP", c("POSIXt", type = "SOAPDateType"),
+setMethod("toSOAP", c("POSIXt", type = "SchemaDateType"),
               function(obj, con = xmlOutputBuffer(header=""), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...)
                   format(obj, "%Y-%m-%d"))
 
-setMethod("toSOAP", c("date", type = "SOAPDateType"),
+setMethod("toSOAP", c("date", type = "SchemaDateType"),
               function(obj, con = xmlOutputBuffer(header=""), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...) {
                   ans = format(as(obj, "Date"), "%Y-%m-%d") #????XXX as.Date(obj) doesn't work. Gets a value off by 10 years!
                   ans
                  }) 
 
 # ??? Time zone information.
-setMethod("toSOAP", c("POSIXt", type = "SOAPDateTimeType"),
+setMethod("toSOAP", c("POSIXt", type = "SchemaDateTimeType"),
               function(obj, con = xmlOutputBuffer(header=""), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...)
                   format(obj, "%Y-%m-%dT%H:%M:%S"))
 
 
-setMethod("toSOAP", c("POSIXt", type = "SOAPTimeType"),
+setMethod("toSOAP", c("POSIXt", type = "SchemaTimeType"),
               function(obj, con = xmlOutputBuffer(header=""), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...)
                   format(obj, "%h:%M:%S"))
 
@@ -81,7 +82,7 @@ function(obj, con = xmlOutputBuffer(header=""), type = NULL, literal = FALSE, el
 
 
 
-setMethod("toSOAP", c("ANY", type = "SOAPType"),
+setMethod("toSOAP", c("ANY", type = "SchemaType"),
 function(obj, con = xmlOutputBuffer(header=""), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...)
 {
   if(literal) {
@@ -101,7 +102,7 @@ function(obj, con = xmlOutputBuffer(header=""), type = NULL, literal = FALSE, el
           cat("</", i, ">\n", sep = "", file = con)       
      }
    } else {
-      stop("No code yet for the toSOAP method for any object and SOAPType pair with literal = FALSE")
+      stop("No code yet for the toSOAP method for any object and SchemaType pair with literal = FALSE")
    }
 
    invisible(TRUE)
@@ -147,7 +148,8 @@ function(obj, con = xmlOutputBuffer(header=""), type = NULL, literal = FALSE, el
 })
 
 
-setGeneric("toSOAPArray", function(obj, con = stdout(), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...)
+setGeneric("toSOAPArray",
+            function(obj, con = stdout(), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...)
                {
                  if(length(names(obj))) 
                    return(toSOAPNamedContainer(obj, con))
@@ -164,7 +166,7 @@ setMethod("toSOAP", c("vector", "XMLInternalElementNode", type = "missing"),
 #
 function(obj, con = stdout(), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...)
 {  
-   if(length(obj) == 1 && (is.null(type) || is(type, "PrimitiveSOAPType"))) {
+   if(length(obj) == 1 && (is.null(type) || is(type, "PrimitiveSchemaType"))) {
       tmp = newXMLTextNode(obj, parent = con)
       return(tmp)
    }
@@ -175,7 +177,7 @@ function(obj, con = stdout(), type = NULL, literal = FALSE, elementFormQualified
 setMethod("toSOAPArray", c("vector"),
 function(obj, con = stdout(), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...)
 {
-   if(length(obj) == 1 && (is.null(type) || is(type, "PrimitiveSOAPType"))) {
+   if(length(obj) == 1 && (is.null(type) || is(type, "PrimitiveSchemaType"))) {
       tmp = newXMLTextNode(obj)
      # if(is(con, "XMLInternalDocument") || is(con, "XMLInternalNode"))
      #    addChildren(xmlRoot(con), tmp)
@@ -240,7 +242,7 @@ function(obj, con = stdout(), type = NULL, literal = FALSE, elementFormQualified
      return(toSOAPNamedContainer(obj, con))
    }
   
-   if(length(obj) == 1 && (is.null(type) || is(type, "PrimitiveSOAPType") ))
+   if(length(obj) == 1 && (is.null(type) || is(type, "PrimitiveSchemaType") ))
      return(newXMLTextNode(obj, parent = con))
 
    if(!is.null(type))
@@ -268,7 +270,7 @@ setMethod("toSOAPArray", c("vector", "XMLInternalNode"), tmp)
 
 
 
-setMethod("toSOAP", c("vector", "connection", type = "PrimitiveSOAPType"),
+setMethod("toSOAP", c("vector", "connection", type = "PrimitiveSchemaType"),
               function(obj, con = xmlOutputBuffer(header=""), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...) {
                 val = type@toConverter(obj)
                 if(length(val) > 1)
@@ -278,17 +280,37 @@ setMethod("toSOAP", c("vector", "connection", type = "PrimitiveSOAPType"),
 )
 
 
-                          #??? should this be XMLInternalElementNode ???
-setMethod("toSOAP", c("vector", "XMLInternalDocument", type = "PrimitiveSOAPType"),
-              function(obj, con = xmlOutputBuffer(header=""), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...) {
-                val = type@toConverter(obj)
-                if(length(val) > 1)
-                  warning("Converting value to primitive SOAP type results in vector with more than one element. Ignoring remainder.")
-                newXMLTextNode(val[1], doc = con)
-              }
-)
+tmp =
+function(obj, con = xmlOutputBuffer(header=""), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...)
+{
 
-setMethod("toSOAP", c("vector", "XMLInternalElementNode", type = "BasicSOAPType"),
+           val = type@toConverter(obj)
+           if(length(val) > 1)
+             warning("Converting value to primitive SOAP type results in vector with more than one element. Ignoring remainder.")
+           newXMLTextNode(val[1], doc = con)
+       }
+                         #??? should this be XMLInternalElementNode ???
+setMethod("toSOAP", c("vector", "XMLInternalDocument", type = "PrimitiveSchemaType"), tmp)
+setMethod("toSOAP", c("vector", "XMLInternalDocument", type = "SchemaStringType"), tmp)
+
+if(FALSE) {
+  #XXX Added these since major changes to XMLSchema. Why do we need this when we used  not.
+   #XXX We don't. Problem was generic for toSOAP was being truncated because of the ans = standardGeneric()
+   # not ans <- standardGeneric()
+tmp =  function(obj, con = xmlOutputBuffer(header=""), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...) {
+
+           val = type@toConverter(obj)
+           if(length(val) > 1)
+             warning("Converting value to primitive SOAP type results in vector with more than one element. Ignoring remainder.")
+           newXMLTextNode(val[1], parent = con)
+       }
+
+setMethod("toSOAP", c("vector", "XMLInternalElementNode", type = "PrimitiveSchemaType"), tmp)
+setMethod("toSOAP", c("vector", "XMLInternalElementNode", type = "SchemaStringType"), tmp)
+}
+
+
+setMethod("toSOAP", c("vector", "XMLInternalElementNode", type = "BasicSchemaType"),
               function(obj, con = xmlOutputBuffer(header = ""), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...) {
                 if(length(formals(type@toConverter)))
                    val = type@toConverter(obj)
@@ -326,7 +348,7 @@ setMethod("toSOAP", c("vector", "XMLInternalElementNode", type = "SimpleSequence
 )
 
 
-setMethod("toSOAP", c("vector", type = "SOAPType"),
+setMethod("toSOAP", c("vector", type = "SchemaType"),
               function(obj, con = xmlOutputBuffer(header=""), type = NULL,  literal = FALSE, elementFormQualified = FALSE, ...) {
                 toSOAPArray(obj, con, type = type, literal = literal, elementFormQualified = elementFormQualified, ...)
               })
@@ -335,7 +357,8 @@ setMethod("toSOAP", c("vector", type = "SOAPType"),
  # We need these signatures to be very specific to ensure that these methods and not the one for BasicSOAPType get called.
 setMethod("toSOAP", c("vector", con = "XMLInternalElementNode", type = "ArrayType"),
               function(obj, con = xmlOutputBuffer(header = ""), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...) {
-                toSOAPArray(obj, con = con, type = type, literal = literal, elementFormQualified = elementFormQualified, ...)
+                toSOAPArray(obj, con = con, type = type, literal = literal,
+                              elementFormQualified = elementFormQualified, ...)
               })
 setMethod("toSOAP", c("list", con = "XMLInternalElementNode", type = "ArrayType"),
               function(obj, con = xmlOutputBuffer(header = ""), type = NULL, literal = FALSE, elementFormQualified = FALSE, ...) {

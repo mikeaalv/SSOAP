@@ -3,7 +3,7 @@ function(server, method, ..., .soapArgs = list(), action, nameSpaces = SOAPNameS
          handlers = SOAPHandlers(), .types = NULL, .convert = TRUE,
          .opts = list(), curlHandle = getCurlHandle(),
          .header = getSOAPRequestHeader(action, .server = server),
-         .literal = FALSE, .soapHeader = NULL, .elementFormQualified = FALSE,
+         .literal = FALSE, .soapHeader = NULL, .elementFormQualified = FALSE,  .use_encoded = FALSE,
          .returnNodeName = NA)
 {
 
@@ -26,9 +26,9 @@ function(server, method, ..., .soapArgs = list(), action, nameSpaces = SOAPNameS
 #    .soapHeader = addWSSE(.wsse, .soapHeader)
 
  
- writeSOAPMessage(doc, nameSpaces, method, ...,
+ writeSOAPMessage(doc, ..., nameSpaces = nameSpaces, method = method, 
                     .soapArgs = .soapArgs, .types = .types, xmlns = xmlns, .literal = .literal,
-                     .soapHeader = .soapHeader, .elementFormQualified = .elementFormQualified)
+                     .soapHeader = .soapHeader, .elementFormQualified = .elementFormQualified, .use_encoded = .use_encoded)
  if(useNodes)
    txt <- as(doc, "character")
  else {
@@ -82,7 +82,7 @@ function(server, method, ..., .soapArgs = list(), action, nameSpaces = SOAPNameS
            else
               .convert(getReturnNode(content))
          )
-  else if(is(.convert, "GenericSchemaType"))  # was "SOAPType" but want to include Element.
+  else if(is(.convert, "GenericSchemaType"))  # was "SchemaType" but want to include Element.
      convertFromSOAP(SOAPResult(content$content, content$header), .convert, nodeName = .returnNodeName)
   else if(is.character(.convert))
        as(getReturnNode(content), .convert)
@@ -124,8 +124,8 @@ function(server)
  
  url = paste(getProtocol(server), server@host, 
               ifelse(length(port), paste(":", port, sep = ""), ""),
-              ifelse(substring(server@url, 1, 1) == "/", "", "/"),
-              server@url, sep="")
+              ifelse(substring(server@path, 1, 1) == "/", "", "/"),
+              server@path, sep="")
 
  url
 }
