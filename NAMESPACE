@@ -14,7 +14,7 @@ exportClass(VirtualXMLSchemaClass)
 export(.SOAP)
 
 export(SOAPServer, SOAPResult)
-
+export(SOAPFault)
 # exportClasses("token", "duration")
 
 exportClass(SOAPServerDescription)
@@ -37,7 +37,7 @@ exportClass(SOAPClientInterface)
 export(toSOAP, convertFromSOAP) #, fromSOAPStruct)
 export(SOAPHandlers) # , SOAPPrimitiveConverters)
 
-      
+
 export(processWSDL, genSOAPClientInterface)
 export(SOAPServerDescription)
 
